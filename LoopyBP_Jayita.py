@@ -15,6 +15,17 @@ def initializeMessages(A, W):
                          #print("i = ", i, " j = ", j, " xj = ", xj, " || MES = ", mess_arr[xj][i][j])
     return mess_arr
 
+def initializeBeliefs():
+    b_arr = np.zeros((A1.shape[0], W1.shape[0]))
+    return b_arr
+
+def neigh(i):
+    my_list = []
+    for m in range(A1.shape[0]):
+        if(A1[i][m]==1):
+            my_list.append(m)
+    return my_list
+
 def neigh_except_j(i, j):
     my_list = []
     for m in range(A1.shape[0]):
@@ -23,8 +34,14 @@ def neigh_except_j(i, j):
     #print("Neighbours of i=", i, " for given j=", j, " are: ", my_list)
     return my_list
 
+def getProd(i, xi, messages):
+    prod = 1
+    neighbors_of_i = neigh(i)
+    for k in neighbors_of_i:
+        prod = prod * messages[xi][k][i]
+    return prod
 
-def getProd(i, j, messages, xi):
+def getProd_except_j(i, j, messages, xi):
     prod = 1
     neighbors_of_i_except_j = neigh_except_j(i, j)
     for k in neighbors_of_i_except_j:
@@ -44,7 +61,7 @@ def getPhi(xi):
 def getNewMessage_SP(W, i, j, messages, xj):
     sum = 0
     for xi in range(W.shape[0]):
-        prod = getProd(i, j, messages, xi)
+        prod = getProd_except_j(i, j, messages, xi)
         psi = getPsi(xi, xj) 
         phi = getPhi(xi)
         total_prod = prod * psi * phi
@@ -52,11 +69,11 @@ def getNewMessage_SP(W, i, j, messages, xj):
     return sum
 
 def updateMessage(i, j, xj, messages, new_message):
-    print("!!Message update!!")
+    #print("!!Message update!!")
     messages[xj][i][j] = new_message
-    messages[xj][j][i] = new_message #maybe problem??????????
-    print("New matrix: ")
-    print(messages)
+    #messages[xj][j][i] = new_message #maybe problem??????????
+    #print("New matrix: ")
+    #print(messages)
     
 def getScalingFactor(xj, messages):
     running_sum = 0
@@ -67,23 +84,50 @@ def getScalingFactor(xj, messages):
     sf=1/running_sum
     return sf
 
+def getNormalConst():
+    return 0.4
+
+def getBelief(i, messages):
+    b_arr = np.zeros((W1.shape[0]))
+    normal_const = getNormalConst()
+    for xi in range(W1.shape[0]):
+        phi = getPhi(xi)
+        prod = getProd(i, xi, messages)
+        bi_xi = normal_const * phi * prod
+        b_arr[xi] = bi_xi
+    return b_arr
+
+
+
 def sum_product(A, W, its):
     r, c = A.shape
     messages_t = initializeMessages(A, W)
-    print("Initial message matrix: \n", messages_t)
-    #Do we need a copy of messages_t?????????????????????????????
+    beliefs_t = initializeBeliefs()
+    #print("Initial message matrix: \n", messages_t)
+    #Do we need a copy of messages_t????????????????????????????? messages_t+1
 
     for t in range(its):
-         print("ITERATION -- ", t, " ----------------")
-         for i in range(r):
-              for j in range(c):
-                for xj in range(W.shape[0]):
-                    new_message_val = getNewMessage_SP(W, i, j, messages_t, xj)
-                    #scaling_factor = 0.4 #PROBLEM???????????????????????????????????????
-                    scaling_factor = getScalingFactor(xj, messages_t)
-                    scaled_message = scaling_factor * new_message_val
-                    updateMessage(i, j, xj, messages_t, scaled_message)
-              
+        print("ITERATION -- ", t, " ----------------")
+        for i in range(r):
+            for j in range(c):
+                if(A1[i][j]==1):
+                    for xj in range(W.shape[0]):
+                        new_message_val = getNewMessage_SP(W, i, j, messages_t, xj)
+                        scaling_factor = 0.4 #PROBLEM???????????????????????????????????????
+                        #scaling_factor = getScalingFactor(xj, messages_t)
+                        #print("SCALING FACTOR === ", scaling_factor)
+                        scaled_message = scaling_factor * new_message_val
+                        updateMessage(i, j, xj, messages_t, scaled_message) #REVIEW THIS
+                        #xi = xj
+                        #belief_xi = getBelief(xi)
+            beliefs__for_i = getBelief(i, messages_t)
+            beliefs_t[i] = beliefs__for_i
+    
+    print("Belief matrix becomes: \n")
+    print(beliefs_t)
+                        
+
+
 
 
 #-----------------------------------------------------------------------------------
@@ -92,9 +136,16 @@ def sum_product(A, W, its):
 
 global A1 
 global W1 
-A1 = np.array([[0,1,0], [1,0,1], [0,1,0]])
-W1 = np.array([1,2])
-its1 = 5
+# A1 = np.array([[0,1,0], [1,0,1], [0,1,0]])
+# W1 = np.array([1,2])
+A1 = np.array([
+    [0, 1, 0, 0],
+    [1, 0, 1, 0],
+    [0, 1, 0, 1],
+    [0, 0, 1, 0]
+])
+W1 = np.array([1, 1, 1])
+its1 = 1
 
-print("Your matrix: \n", A1)
+#print("Your matrix: \n", A1)
 sum_product(A1, W1, its1)
