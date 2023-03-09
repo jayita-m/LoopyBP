@@ -92,8 +92,12 @@ def getBelief(i, messages):
     normal_const = getNormalConst()
     for xi in range(W1.shape[0]):
         phi = getPhi(xi)
+        print("Phi   == ", phi)
         prod = getProd(i, xi, messages)
+        print("Prod  == ", prod)
         bi_xi = normal_const * phi * prod
+        print("Bi_Xi == ", bi_xi)
+        print()
         b_arr[xi] = bi_xi
     return b_arr
 
@@ -145,7 +149,7 @@ A1 = np.array([
     [0, 0, 1, 0]
 ])
 W1 = np.array([1, 1, 1])
-its1 = 1
+its1 = 10
 
 #print("Your matrix: \n", A1)
 sum_product(A1, W1, its1)
