@@ -11,16 +11,11 @@ def initializeMessages(A, W):
             for j in range(cols):
                     if(A[i][j]==1):
                          mess_arr[xj][i][j] = 1
-                         #print("Made message = 1 for i = ", i, " j = ", j)
-                         #print("i = ", i, " j = ", j, " xj = ", xj, " || MES = ", mess_arr[xj][i][j])
     return mess_arr
 
 def initializeBeliefs():
     b_arr = np.zeros((A1.shape[0], W1.shape[0]))
     return b_arr
-
-# def initializePwBeliefs():
-    
 
 def neigh(i):
     my_list = []
@@ -34,7 +29,6 @@ def neigh_except_j(i, j):
     for m in range(A1.shape[0]):
         if(A1[i][m]==1 and m!=j):
             my_list.append(m)
-    #print("Neighbours of i=", i, " for given j=", j, " are: ", my_list)
     return my_list
 
 def getProd(i, xi, messages):
@@ -92,15 +86,10 @@ def getNewMessage_MP(W, i, j, messages, xj):
 
 
 def updateMessage(i, j, xj, messages, new_message):
-    #print("!!Message update!!")
     messages[xj][i][j] = new_message
-    #messages[xj][j][i] = new_message #maybe problem??????????
-    #print("New matrix: ")
-    #print(messages)
 
 def getNormalConst(messages, i):
     running_sum = 0
-    rows, cols = A1.shape
     for xi in range(W1.shape[0]):
             running_sum += (getPhi(xi)*getProd(i, xi, messages))
     nc = running_sum
@@ -111,25 +100,10 @@ def getBelief(i, messages):
     normal_const = getNormalConst(messages, i)
     for xi in range(W1.shape[0]):
         phi = getPhi(xi)
-        #print("Phi   == ", phi)
         prod = getProd(i, xi, messages)
-        #print("Prod  == ", prod)
         bi_xi = (phi * prod)/normal_const
-        #print("Bi_Xi == ", bi_xi)
-        #print()
         b_arr[xi] = bi_xi
     return b_arr
-
-def getPairwiseBeliefs(messages, pw_beliefs):
-
-    for xi in range(W1.shape[0]):
-        for xj in range(W1.shape[0]):
-            phi_i = getPhi(xi)
-            phi_j = getPhi(xj)
-            psi_ij = getPsi(xi, xj)
-            prod_i = getProd_except_j(i, j, messages, xi)
-            prod_j = getProd_except_j(j, i, messages, xj)
-
 
 def getColoringAssignment(beliefs):
     asgnmt_list = []
@@ -140,50 +114,101 @@ def getColoringAssignment(beliefs):
             color = 0
         else:
             color = x[0]+1
-        #x = np.argmax(belief)
-        #print("For belief: ", belief, " x = ", x)
         asgnmt_list.append(color)
     return asgnmt_list
 
-# def getPartitionFunc(beliefs):
+def getEntropy(i, beliefs):
+    summation = 0
+    for xi in range(W1.shape[0]):
+        belief_xi = beliefs[i][xi]
+        if(belief_xi==0):
+            log_belief_xi = 0
+        else:
+            log_belief_xi = np.log(belief_xi)
+        summation += (belief_xi * log_belief_xi)
+    return -summation
 
+def getNormalConst_pw(i, j, messages):
+    running_sum = 0
+    for xi in range(W1.shape[0]):
+        for xj in range(W1.shape[0]):
+            running_sum += (getPhi(xi)*getPhi(xj)*getPsi(xi,xj)*
+                            getProd_except_j(i, j, messages, xi)*getProd_except_j(j, i, messages, xj))
+    nc = running_sum
+    return nc
+
+def getPairwiseBelief(i, j, xi, xj, messages):
+    phi_i = getPhi(xi)
+    phi_j = getPhi(xj)
+    psi_ij = getPsi(xi, xj)
+    prod_without_j = getProd_except_j(i, j, messages, xi)
+    prod_without_i = getProd_except_j(j, i, messages, xj)
+    pw_belief = phi_i * phi_j * psi_ij * prod_without_i * prod_without_j
+
+    nc = getNormalConst_pw(i, j, messages)
+    normalized_pw_belief = pw_belief/nc
+
+    return normalized_pw_belief
+
+def getEnergy(i, j, messages, beliefs):
+    energy_sum = 0
+    for xi in range(W1.shape[0]):
+        for xj in range(W1.shape[0]):
+            if(xi==xj):
+                continue
+            if(i==j or A1[i][j]==0):
+                pw_belief_xi_xj = 0
+            else:
+                pw_belief_xi_xj = getPairwiseBelief(i, j, xi, xj, messages)
+            if(pw_belief_xi_xj==0):
+                log_pw_belief = 0
+            else:
+                fraction = pw_belief_xi_xj/(beliefs[i][xi]*beliefs[j][xj])
+                log_pw_belief = np.log(fraction)
+            energy_sum = energy_sum + (pw_belief_xi_xj * log_pw_belief)
+    return energy_sum
+
+            
+
+def bethe_free_energy(beliefs, messages):
+    big_entropy = 0
+    for i in range(A1.shape[0]):
+        entropy_i = getEntropy(i, beliefs)
+        big_entropy += entropy_i
+    
+    big_energy_sum = 0 
+    for i in range(A1.shape[0]):
+        for j in range(i+1, A1.shape[0]):
+            energy_ij = getEnergy(i, j, messages, beliefs)
+            big_energy_sum += energy_ij
+
+    bfe = big_entropy-big_energy_sum
+    return bfe
+
+def getPartitionFunc(beliefs, messages):
+    log_z = bethe_free_energy(beliefs, messages)
+    z = np.exp(log_z)
+    return z
 
 def sum_product(A, W, its):
     r, c = A.shape
     messages_t = initializeMessages(A, W)
     messages_t_minus_1 = initializeMessages(A, W)
     beliefs_t = initializeBeliefs()
-    # pw_beliefs_t = initializePwBeliefs()
-    #print("Initial message matrix: \n", messages_t)
-    #Do we need a copy of messages_t????????????????????????????? messages_t+1
 
     for t in range(its):
-        #print("ITERATION ----------- ", t, " ----------------")
         for i in range(r):
             for j in range(c):
                 if(A1[i][j]==1):
                     scaling_factor = getScalingFactor(W, messages_t, i, j)
                     for xj in range(W.shape[0]):
                         new_message_val = getNewMessage_SP(W, i, j, messages_t_minus_1, xj)
-                        #scaling_factor = 1 #PROBLEM???????????????????????????????????????
-                        #scaling_factor = getScalingFactor(xj, messages_t)
-                        #print("SCALING FACTOR === ", scaling_factor)
                         scaled_message = new_message_val/scaling_factor
-                        updateMessage(i, j, xj, messages_t, scaled_message) #REVIEW THIS
-                        #xi = xj
-                        #belief_xi = getBelief(xi)
-            # beliefs__for_i = getBelief(i, messages_t)
-            # beliefs_t[i] = beliefs__for_i
+                        updateMessage(i, j, xj, messages_t, scaled_message) 
         for i in range(r):
             beliefs__for_i = getBelief(i, messages_t)
             beliefs_t[i] = beliefs__for_i
 
-        #getPairwiseBeliefs()
-
-        # print("!!@@!!@@!!@@--- Messages at t-1: ")
-        # print(messages_t_minus_1)
-        # print("!!@@!!@@!!@@--- Messages at t: ")
-        # print(messages_t)
         messages_t_minus_1 = np.copy(messages_t)
     
     print("Belief matrix becomes (each row = 1 vertex, each col = color assignment): \n")
@@ -194,10 +219,8 @@ def sum_product(A, W, its):
     assignment_list = getColoringAssignment(beliefs_t)
     print(assignment_list)
 
-    #Z = getPartitionFunc(beliefs_t)
-
-    # print("Message matrix becomes: ")
-    # print(messages_t)
+    Z = getPartitionFunc(beliefs_t, messages_t)
+    print("Partition function, Z, is: ", Z)
                         
 def max_product(A, W, its):
     r, c = A.shape
@@ -208,10 +231,8 @@ def max_product(A, W, its):
         for i in range(r):
             for j in range(c):
                 if(A[i][j]==1):
-                    #SCALING FACTOR
                     for xj in range(W.shape[0]):
                         new_message_val = getNewMessage_MP(W, i, j, messages_t_minus_1, xj)
-                        #SCALED MESSAGE
                         updateMessage(i, j, xj, messages_t, new_message_val)
         for i in range(r):
             beliefs__for_i = getBelief(i, messages_t)
@@ -219,17 +240,8 @@ def max_product(A, W, its):
 
         messages_t_minus_1 = np.copy(messages_t)
     
-    # print("Belief matrix becomes (each row = 1 vertex, each col = color assignment): \n")
-    # print(beliefs_t)
-    # print()
-
-    
     assignment_list = getColoringAssignment(beliefs_t)
-    #print(assignment_list)
     return assignment_list
-    # print("Message matrix becomes: ")
-    # print(messages_t)
-    # print()
 
 
 #-----------------------------------------------------------------------------------
@@ -238,8 +250,8 @@ def max_product(A, W, its):
 
 global A1 
 global W1 
-# A1 = np.array([[0,1,0], [1,0,1], [0,1,0]])
-# W1 = np.array([1,1])
+A1 = np.array([[0,1,0], [1,0,1], [0,1,0]])
+W1 = np.array([1,1])
 
 # A1 = np.array([
 #     [0, 1, 0, 0],
@@ -249,20 +261,21 @@ global W1
 # ])
 # W1 = np.array([1, 2, 3])
 
-A1 = np.array([
-    [0, 1, 0, 0, 0],
-    [1, 0, 1, 0, 0],
-    [0, 1, 0, 1, 0],
-    [0, 0, 1, 0, 1],
-    [0, 0, 0, 1, 0]
-])
-W1 = np.array([1, 2, 3, 4, 5])
+# A1 = np.array([
+#     [0, 1, 0, 0, 0],
+#     [1, 0, 1, 0, 0],
+#     [0, 1, 0, 1, 0],
+#     [0, 0, 1, 0, 1],
+#     [0, 0, 0, 1, 0]
+# ])
+# W1 = np.array([1, 2, 3, 4, 5])
+
 its1 = 30
 
 user_input = "1"
 while(user_input!=3):
     user_input = input("1) TYPE 1 for Sum-Product\n2) TYPE 2 for Max-Product\n3) TYPE 3 to Exit\n")
-    
+
     if(user_input=="1"):
         sum_product(A1, W1, its1)
 
