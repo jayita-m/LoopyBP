@@ -1,11 +1,19 @@
+#CS 6347 - Spring 2023
+#Homework 2, Problem 2
+#BY: JAYITA MALIK
+
 import numpy as np
 
+#----------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------
+# HELPER FUNCTIONS 
+
+#Initialize the message 3D matrix
 def initializeMessages(A, W):
     rows, cols = A.shape
     num_colors = W.shape[0]
     mess_arr = np.zeros((num_colors, rows, cols))
 
-    #Make every edge as 1 
     for xj in range(num_colors):
         for i in range(rows):
             for j in range(cols):
@@ -13,10 +21,12 @@ def initializeMessages(A, W):
                          mess_arr[xj][i][j] = 1
     return mess_arr
 
+#Initialize beliefs matrix
 def initializeBeliefs():
     b_arr = np.zeros((A1.shape[0], W1.shape[0]))
     return b_arr
 
+#Get neighbors of a vertex
 def neigh(i):
     my_list = []
     for m in range(A1.shape[0]):
@@ -24,6 +34,7 @@ def neigh(i):
             my_list.append(m)
     return my_list
 
+#Get neighbors of a vertex excluding j
 def neigh_except_j(i, j):
     my_list = []
     for m in range(A1.shape[0]):
@@ -31,6 +42,7 @@ def neigh_except_j(i, j):
             my_list.append(m)
     return my_list
 
+#Get the product of incoming messages to a vertex
 def getProd(i, xi, messages):
     prod = 1
     neighbors_of_i = neigh(i)
@@ -38,6 +50,7 @@ def getProd(i, xi, messages):
         prod = prod * messages[xi][k][i]
     return prod
 
+#Get the product of incoming messages (except from j)
 def getProd_except_j(i, j, messages, xi):
     prod = 1
     neighbors_of_i_except_j = neigh_except_j(i, j)
@@ -45,16 +58,19 @@ def getProd_except_j(i, j, messages, xi):
         prod = prod * messages[xi][k][i]
     return prod
 
+#Get psi
 def getPsi(xi, xj):
     if(xi==xj):
         return 0
     else:
         return 1
     
+#Get phi
 def getPhi(xi):
     x = np.exp(W1[xi])
     return x
 
+#Get scaling factor for messages
 def getScalingFactor(W, messages, i, j):
     running_sum = 0
     for xj in range(W.shape[0]):
@@ -63,6 +79,7 @@ def getScalingFactor(W, messages, i, j):
     sf = running_sum
     return sf
 
+#Create a new message for sum-product
 def getNewMessage_SP(W, i, j, messages, xj):
     sum = 0
     for xi in range(W.shape[0]):
@@ -73,6 +90,7 @@ def getNewMessage_SP(W, i, j, messages, xj):
         sum = sum + total_prod
     return sum
 
+#Create a new message for max-product
 def getNewMessage_MP(W, i, j, messages, xj):
     a = []
     for xi in range(W.shape[0]):
@@ -84,10 +102,11 @@ def getNewMessage_MP(W, i, j, messages, xj):
     max_xi = np.max(np.array(a))
     return max_xi
 
-
+#Update the 3D message matrix
 def updateMessage(i, j, xj, messages, new_message):
     messages[xj][i][j] = new_message
 
+#Get normalization constant 
 def getNormalConst(messages, i):
     running_sum = 0
     for xi in range(W1.shape[0]):
@@ -95,6 +114,7 @@ def getNormalConst(messages, i):
     nc = running_sum
     return nc
 
+#Returns belief of a vertex i
 def getBelief(i, messages):
     b_arr = np.zeros((W1.shape[0]))
     normal_const = getNormalConst(messages, i)
@@ -105,6 +125,7 @@ def getBelief(i, messages):
         b_arr[xi] = bi_xi
     return b_arr
 
+#Returns the coloring assignment
 def getColoringAssignment(beliefs):
     asgnmt_list = []
     for belief in beliefs:
@@ -117,6 +138,7 @@ def getColoringAssignment(beliefs):
         asgnmt_list.append(color)
     return asgnmt_list
 
+#Gets the entropy for bethe free energy
 def getEntropy(i, beliefs):
     summation = 0
     for xi in range(W1.shape[0]):
@@ -128,6 +150,7 @@ def getEntropy(i, beliefs):
         summation += (belief_xi * log_belief_xi)
     return -summation
 
+#Gets normalization constant for pairwise beliefs
 def getNormalConst_pw(i, j, messages):
     running_sum = 0
     for xi in range(W1.shape[0]):
@@ -137,6 +160,7 @@ def getNormalConst_pw(i, j, messages):
     nc = running_sum
     return nc
 
+#Calculates pairwise beliefs dynamically 
 def getPairwiseBelief(i, j, xi, xj, messages):
     phi_i = getPhi(xi)
     phi_j = getPhi(xj)
@@ -150,6 +174,7 @@ def getPairwiseBelief(i, j, xi, xj, messages):
 
     return normalized_pw_belief
 
+#Returns the second term (I_ij) for Bethe Free Energy
 def getEnergy(i, j, messages, beliefs):
     energy_sum = 0
     for xi in range(W1.shape[0]):
@@ -168,8 +193,7 @@ def getEnergy(i, j, messages, beliefs):
             energy_sum = energy_sum + (pw_belief_xi_xj * log_pw_belief)
     return energy_sum
 
-            
-
+#Gets Bethe Free Energy
 def bethe_free_energy(beliefs, messages):
     big_entropy = 0
     for i in range(A1.shape[0]):
@@ -185,12 +209,16 @@ def bethe_free_energy(beliefs, messages):
     bfe = big_entropy-big_energy_sum
     return bfe
 
+#Gets partition function Z
 def getPartitionFunc(beliefs, messages):
     log_z = bethe_free_energy(beliefs, messages)
     z = np.exp(log_z)
     return z
 
-def sum_product(A, W, its):
+#----------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------
+# SUM PRODUCT FUNCTION
+def sumprod(A, W, its):
     r, c = A.shape
     messages_t = initializeMessages(A, W)
     messages_t_minus_1 = initializeMessages(A, W)
@@ -211,18 +239,18 @@ def sum_product(A, W, its):
 
         messages_t_minus_1 = np.copy(messages_t)
     
-    print("Belief matrix becomes (each row = 1 vertex, each col = color assignment): \n")
-    print(beliefs_t)
-    print()
-
-    print("Hence coloring assignment for [v1, v2, ..., vn] becomes: ")
     assignment_list = getColoringAssignment(beliefs_t)
-    print(assignment_list)
+    print("Coloring assignment: ", assignment_list)
 
     Z = getPartitionFunc(beliefs_t, messages_t)
-    print("Partition function, Z, is: ", Z)
-                        
-def max_product(A, W, its):
+    return Z
+#----------------------------------------------------------------------------------
+
+
+#----------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------
+# MAX PRODUCT FUNCTION                   
+def maxprod(A, W, its):
     r, c = A.shape
     messages_t = initializeMessages(A, W)
     messages_t_minus_1 = initializeMessages(A, W)
@@ -242,58 +270,123 @@ def max_product(A, W, its):
     
     assignment_list = getColoringAssignment(beliefs_t)
     return assignment_list
-
+#----------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------
-#Graph 1: 1--2--3
-#Weights: [1, 2]
+#----------------------------------------------------------------------------------
+# MAIN
+global A1
+global W1
+print("\n------------------------------")
+print("Would you like to use an existing example, or enter your own matrix, weights, and iterations?")
+source = input("e - Example\no - Own matrix, weights, iterations\n")
 
-global A1 
-global W1 
-A1 = np.array([[0,1,0], [1,0,1], [0,1,0]])
-W1 = np.array([1,1])
+#If user wants to use the in-built examples
+if(source=="E" or source=="e"):
 
-# A1 = np.array([
-#     [0, 1, 0, 0],
-#     [1, 0, 1, 0],
-#     [0, 1, 0, 1],
-#     [0, 0, 1, 0]
-# ])
-# W1 = np.array([1, 2, 3])
+    #Example 1
+    print("\n~~***----  EXAMPLE 1  ----***~~")
+    A1 = np.array([[0,1,0], 
+                   [1,0,1], 
+                   [0,1,0]])
+    W1 = np.array([1,2])
+    its1 = 30
 
-# A1 = np.array([
-#     [0, 1, 0, 0, 0],
-#     [1, 0, 1, 0, 0],
-#     [0, 1, 0, 1, 0],
-#     [0, 0, 1, 0, 1],
-#     [0, 0, 0, 1, 0]
-# ])
-# W1 = np.array([1, 2, 3, 4, 5])
+    print("GRAPH:   1--2--3")
+    print("WEIGHTS: [1,2]")
+    print("ITS:     30\n")
 
-its1 = 30
+    print("\n------- SUM PRODUCT --------")
+    Z = sumprod(A1, W1, its1)
+    print("Approximate parition function, Z = ", Z)
+    print("----------------------------\n")
 
-user_input = "1"
-while(user_input!=3):
-    user_input = input("1) TYPE 1 for Sum-Product\n2) TYPE 2 for Max-Product\n3) TYPE 3 to Exit\n")
+    print("------- MAX PRODUCT --------")
+    assignment_list = maxprod(A1, W1, its1)
+    print("Coloring assignment for [v1,v2,...,vn]: ", assignment_list)
+    print("----------------------------\n")
 
-    if(user_input=="1"):
-        sum_product(A1, W1, its1)
+    #Ask user if they want to see 1 more example
+    more_example = input("Would you like to see 1 more example? (y/n)\n")
+    if(more_example=="y" or more_example=="Y"):
 
-    elif(user_input=="2"):
-        assignment_list = max_product(A1, W1, its1)
+        #Example 2
+        print("\n~~***----  EXAMPLE 2  ----***~~")
+        A1 = np.array([[0,1,0,0], 
+                       [1,0,1,1], 
+                       [0,1,0,0],
+                       [0,1,0,0]])
+        W1 = np.array([1,1])
+        its1 = 30
+
+        print("GRAPH:   1--2--3")
+        print("            |   ")
+        print("            4   ")
+        print("WEIGHTS: [1,1]")
+        print("ITS:     30\n")
+
+        print("\n------- SUM PRODUCT --------")
+        Z = sumprod(A1, W1, its1)
+        print("Approximate parition function, Z = ", Z)
+        print("----------------------------\n")
+
         print("------- MAX PRODUCT --------")
+        assignment_list = maxprod(A1, W1, its1)
         print("Coloring assignment for [v1,v2,...,vn]: ", assignment_list)
         print("----------------------------\n")
 
-    elif(user_input=="3"):
-        print("Exiting...")
-        break
+#If the user wants to enter own matrix, weights, iter
+elif(source=="O" or source=="o"):
+    print()
 
-    else:
-        print("!!ERROR: Not a valid input")
+    #Input matrix
+    R = int(input("For matrix, enter the # of rows/cols: "))
+    C = R
+    M1 = []
+    print("Enter the entries rowwise (press ENTER after each entry):")
     
+    for i in range(R):          
+        a =[]
+        for j in range(C):      
+            a.append(int(input()))
+        M1.append(a)
+    
+    print("Your matrix is: ")
+    for i in range(R):
+        for j in range(C):
+            print(M1[i][j], end = " ")
+        print()
+    A1 = np.array(M1)
 
 
+    #Input weights
+    v = int(input("\nFor weights, enter the # of values:"))
+    M2 = []
 
-#print("Your matrix: \n", A1)
+    print("Enter the weights (press ENTER after each entry):")
+    for i in range(v):
+        M2.append(int(input()))
+
+    print("Your weights are: ", M2)
+    W1 = np.array(M2)
+
+
+    #Input iterations
+    its2=int(input("\nEnter # of iterations: "))
+
+
+    #Sum-product and max-product functions
+    print("\n------- SUM PRODUCT --------")
+    Z = sumprod(A1, W1, its2)
+    print("Approximate parition function, Z = ", Z)
+    print("----------------------------\n")
+
+    print("------- MAX PRODUCT --------")
+    assignment_list = maxprod(A1, W1, its2)
+    print("Coloring assignment for [v1,v2,...,vn]: ", assignment_list)
+    print("----------------------------\n")
+
+
+else:
+    print("Exiting program: Invalid input, enter E or O")
 
